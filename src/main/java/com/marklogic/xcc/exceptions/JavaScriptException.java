@@ -16,7 +16,6 @@
 package com.marklogic.xcc.exceptions;
 
 import com.marklogic.xcc.Request;
-import com.marklogic.xcc.types.XdmVariable;
 
 public class JavaScriptException extends QueryException {
     

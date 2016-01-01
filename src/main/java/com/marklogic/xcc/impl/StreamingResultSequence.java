@@ -25,24 +25,23 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.marklogic.http.MultipartBuffer;
+import com.marklogic.xcc.Request;
 import com.marklogic.xcc.RequestOptions;
 import com.marklogic.xcc.ResultChannelName;
 import com.marklogic.xcc.ResultItem;
 import com.marklogic.xcc.ResultSequence;
-import com.marklogic.xcc.Request;
+import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.StreamingResultException;
 import com.marklogic.xcc.spi.ServerConnection;
 import com.marklogic.xcc.types.ValueType;
 import com.marklogic.xcc.types.XdmItem;
 import com.marklogic.xcc.types.impl.SequenceImpl;
-import com.marklogic.xcc.exceptions.RequestException;
 
 public class StreamingResultSequence extends AbstractResultSequence {
     private final SessionImpl session;
     private final MultipartBuffer mbuf;
     private final RequestOptions options;
     private final Logger logger;
-    private final long startTime;
     private ServerConnection connection;
     private boolean closed = false;
     private int cursor = -1;
@@ -57,8 +56,6 @@ public class StreamingResultSequence extends AbstractResultSequence {
         this.mbuf = mbuf;
         this.options = options;
         this.logger = logger;
-
-        startTime = System.currentTimeMillis();
 
         session.registerResultSequence(this);
     }
@@ -88,8 +85,6 @@ public class StreamingResultSequence extends AbstractResultSequence {
         invalidateCurrentIterator();
 
         session.deRegisterResultSequence(this);
-
-        long now = System.currentTimeMillis();
 
         try {
             mbuf.close();

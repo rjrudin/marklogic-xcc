@@ -20,18 +20,15 @@ import java.util.logging.Logger;
 
 import com.marklogic.http.BMBoundaryPartSplitter;
 import com.marklogic.http.HttpChannel;
-import com.marklogic.http.HttpHeaders;
 import com.marklogic.http.MultipartBuffer;
 import com.marklogic.http.MultipartSplitter;
 import com.marklogic.http.NullPartSplitter;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.RequestOptions;
-import com.marklogic.xcc.impl.CachedResultSequence;
-import com.marklogic.xcc.impl.SessionImpl;
-import com.marklogic.xcc.impl.StreamingResultSequence;
-import com.marklogic.xcc.impl.RequestImpl;
-import com.marklogic.xcc.spi.ServerConnection;
 import com.marklogic.xcc.exceptions.RequestException;
+import com.marklogic.xcc.impl.CachedResultSequence;
+import com.marklogic.xcc.impl.StreamingResultSequence;
+import com.marklogic.xcc.spi.ServerConnection;
 
 public class GoodQueryResponseHandler implements ResponseHandler {
     public Object handleResponse(HttpChannel http, int responseCode, Request request, Object attachment, Logger logger)

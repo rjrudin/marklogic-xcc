@@ -22,7 +22,6 @@ import java.net.URISyntaxException;
 import java.util.logging.Logger;
 
 import com.marklogic.http.HttpChannel;
-import com.marklogic.http.HttpHeaders;
 import com.marklogic.io.IOHelper;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentFactory;
