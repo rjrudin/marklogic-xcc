@@ -1,0 +1,52 @@
+plugins {
+  id "java"
+  id "maven-publish"
+  id "eclipse"
+  id "com.jfrog.bintray" version "1.5"
+}
+
+sourceCompatibility = "1.7"
+targetCompatibility = "1.7"
+
+repositories {
+  jcenter()
+}
+
+dependencies {
+  compile "com.fasterxml.jackson.core:jackson-core:2.6.4"
+  compile "com.fasterxml.jackson.core:jackson-databind:2.6.4"
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+  classifier 'sources' 
+  from sourceSets.main.allJava
+}
+
+publishing {
+  publications {
+    mainJava(MavenPublication) {
+      from components.java
+    }
+    sourcesJava(MavenPublication) {
+      from components.java
+      artifact sourcesJar
+    }
+  }
+}
+ 
+if (project.hasProperty("myBintrayUser")) {
+  bintray {
+    user = myBintrayUser
+    key = myBintrayKey
+    publications = ['mainJava', 'sourcesJava']
+    pkg {
+      repo = 'maven'
+      name = project.name
+      licenses = ['Apache-2.0']
+      vcsUrl = 'https://github.com/rjrudin/' + project.name + '.git'
+      version {
+        name = version
+      }
+    }
+  }
+}
