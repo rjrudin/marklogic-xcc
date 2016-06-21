@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,13 @@ import com.marklogic.http.HttpChannel;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.RequestOptions;
 import com.marklogic.xcc.ResultSequence;
+import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.RequestPermissionException;
 import com.marklogic.xcc.exceptions.RequestServerException;
 import com.marklogic.xcc.exceptions.RetryableQueryException;
 import com.marklogic.xcc.exceptions.ServerConnectionException;
+import com.marklogic.xcc.exceptions.ServerResponseException;
 import com.marklogic.xcc.exceptions.UnexpectedResponseException;
 import com.marklogic.xcc.impl.ContentSourceImpl;
 import com.marklogic.xcc.impl.SessionImpl;
@@ -104,16 +106,39 @@ public abstract class AbstractRequestController implements HttpRequestController
                     }
                 }
             } catch (RetryableQueryException e) {
-                logger.log(Level.FINE, "Retryable server exception caught.", e);
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE,
+                            "Retryable server exception caught.", e);
+                }
+                provider.returnConnection(connection, logger);
+                re = e;
+            } catch (ServerResponseException e) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE,
+                            "ServerResponseException caught.", e);
+                }
+                provider.returnConnection(connection, logger);
+                throw e;
+            } catch (ServerConnectionException e) {
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE,
+                            "Retryable server exception caught.", e);
+                }
                 provider.returnConnection(connection, logger);
                 re = e;
             } catch (RequestServerException e) {
-                logger.log(Level.FINE, "Non-retryable server exception caught.", e);
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE, 
+                            "Non-retryable server exception caught.", e);
+                }
                 provider.returnConnection(connection, logger);
                 throw e;
-
+            
             } catch (IOException e) {
-                logger.log(Level.FINE, "Connection IOException caught.", e);
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.log(Level.FINE, "Connection IOException caught.", 
+                            e);
+                }
               
                 ConnectionErrorAction action = null;
 
@@ -123,15 +148,18 @@ public abstract class AbstractRequestController implements HttpRequestController
 
                 re = new ServerConnectionException(e.getMessage(), request, e);
                  
-                boolean badResponse = e.getCause() instanceof UnexpectedResponseException;
+                boolean badResponse = e.getCause() instanceof 
+                        UnexpectedResponseException;
                 if (badResponse) {
                     logger.log(Level.WARNING, e.getMessage());
                 }
                 if (action != ConnectionErrorAction.RETRY && !badResponse) {
                     if (action == null) {
-                        logger.log(Level.WARNING, "Cannot obtain connection: " + e.getMessage(), e);
-                    } else {
-                        logger.log(Level.FINE, "Provider error action=" + action + ", throwing: " + re, re);
+                        logger.log(Level.WARNING, "Cannot obtain connection: " + 
+                            e.getMessage(), e);
+                    } else if (logger.isLoggable(Level.FINE)) {
+                        logger.log(Level.FINE, "Provider error action=" + 
+                            action + ", throwing: " + re, re);
                     }
 
                     throw re;
@@ -146,8 +174,10 @@ public abstract class AbstractRequestController implements HttpRequestController
                 break;
             }
         }
-
-        logger.log(Level.INFO, "automatic query retries (" + t + ") exhausted, throwing: " + re, re);
+        if (logger.isLoggable(Level.INFO)) {
+            logger.log(Level.INFO, "automatic query retries (" + t + 
+                    ") exhausted, throwing: " + re, re);
+        }
 
         if (re != null) {
             throw re;

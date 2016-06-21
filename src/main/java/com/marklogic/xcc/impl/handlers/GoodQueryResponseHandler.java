@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,18 @@ import java.util.logging.Logger;
 
 import com.marklogic.http.BMBoundaryPartSplitter;
 import com.marklogic.http.HttpChannel;
+import com.marklogic.http.HttpHeaders;
 import com.marklogic.http.MultipartBuffer;
 import com.marklogic.http.MultipartSplitter;
 import com.marklogic.http.NullPartSplitter;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.RequestOptions;
-import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.impl.CachedResultSequence;
+import com.marklogic.xcc.impl.SessionImpl;
 import com.marklogic.xcc.impl.StreamingResultSequence;
+import com.marklogic.xcc.impl.RequestImpl;
 import com.marklogic.xcc.spi.ServerConnection;
+import com.marklogic.xcc.exceptions.RequestException;
 
 public class GoodQueryResponseHandler implements ResponseHandler {
     public Object handleResponse(HttpChannel http, int responseCode, Request request, Object attachment, Logger logger)

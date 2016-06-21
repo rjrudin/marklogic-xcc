@@ -1,6 +1,9 @@
 package com.marklogic.xcc;
 
 public class Version {
+    public static String getVersionString() {
+        return "8.0.5";
+    }
 
     public static int getVersionMajor() {
         return 8;
@@ -11,10 +14,6 @@ public class Version {
     }
 
     public static int getVersionPatch() {
-        return 4;
-    }
-
-    public static String getVersionString() {
-        return "8.0.4";
+        return 5;
     }
 }

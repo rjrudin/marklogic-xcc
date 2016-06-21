@@ -2,7 +2,7 @@ plugins {
   id "java"
   id "maven-publish"
   id "eclipse"
-  id "com.jfrog.bintray" version "1.5"
+  id "com.jfrog.bintray" version "1.6"
 }
 
 sourceCompatibility = "1.7"
@@ -32,11 +32,6 @@ publishing {
       artifact sourcesJar
     }
   }
-  repositories {
-    maven {
-      url publishUrl
-    }
-  }
 }
  
 if (project.hasProperty("myBintrayUser")) {
@@ -47,10 +42,11 @@ if (project.hasProperty("myBintrayUser")) {
     pkg {
       repo = 'maven'
       name = project.name
+      //userOrg = 'marklogic'
       licenses = ['Apache-2.0']
       vcsUrl = 'https://github.com/rjrudin/' + project.name + '.git'
       version {
-        name = "8.0.4"
+        name = project.version
         released = new Date()
       }
     }

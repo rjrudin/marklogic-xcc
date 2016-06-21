@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.net.URISyntaxException;
 import java.util.logging.Logger;
 
 import com.marklogic.http.HttpChannel;
+import com.marklogic.http.HttpHeaders;
 import com.marklogic.io.IOHelper;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentFactory;

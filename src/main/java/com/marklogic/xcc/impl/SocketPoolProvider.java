@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,13 +118,15 @@ public class SocketPoolProvider implements ConnectionProvider, SingleHostAddress
 
     public void returnConnection(ServerConnection connection, Logger logger) {
         if (getLogger(logger).isLoggable(Level.FINE)) {
-            getLogger(logger).fine("returnConnection for " + address + ", expire=" + connection.getTimeoutMillis());
+            getLogger(logger).fine("returnConnection for " + address + 
+                    ", expire=" + connection.getTimeoutMillis());
         }
 
         ByteChannel channel = connection.channel();
 
         if ((channel == null) || (!(channel instanceof SocketChannel))) {
-            getLogger(logger).fine("channel is not eligible for pooling, dropping");
+            getLogger(logger).fine(
+                    "channel is not eligible for pooling, dropping");
             return;
         }
 
@@ -132,9 +134,15 @@ public class SocketPoolProvider implements ConnectionProvider, SingleHostAddress
         Socket socket = socketChannel.socket();
         int localPort = socket.getLocalPort() ;
 
-        if ((!socketChannel.isOpen()) || socket.isInputShutdown() || socket.isOutputShutdown()) {
-            if( socketChannel.isOpen() ){
-                getLogger(logger).fine("channel has been shutdown but not closed: closing and dropping. local-port=" + localPort);
+        if (!socketChannel.isOpen() || 
+            socket.isInputShutdown() || 
+            socket.isOutputShutdown()) {
+            if( socketChannel.isOpen()) {
+                if (getLogger(logger).isLoggable(Level.FINE)) {
+                    getLogger(logger).fine(
+                        "channel has been shutdown but not closed: closing and dropping. local-port="
+                    + localPort);
+                }
                 connection.close();
             } else
                 getLogger(logger).fine("channel has been closed, dropping. local-port=" + localPort);
@@ -161,14 +169,15 @@ public class SocketPoolProvider implements ConnectionProvider, SingleHostAddress
     }
 
     public ConnectionErrorAction returnErrorConnection(ServerConnection connection, Throwable exception, Logger logger) {
-        getLogger(logger).log(Level.FINE, "error return", exception);
-
+        if (getLogger(logger).isLoggable(Level.FINE)) {
+            getLogger(logger).log(Level.FINE, "error return", exception);
+        }
         ByteChannel channel = connection.channel();
-
         if (channel != null) {
             if (channel.isOpen()) {
                 try {
                     channel.close();
+                    getLogger(logger).fine("closed error connection");
                 } catch (IOException e) {
                     // do nothing, don't care anymore
                 }
@@ -178,9 +187,9 @@ public class SocketPoolProvider implements ConnectionProvider, SingleHostAddress
                 return (ConnectionErrorAction.RETRY);
             }
         }
-
-        getLogger(logger).fine("returning FAIL action");
-
+        if (getLogger(logger).isLoggable(Level.FINE)) {
+            getLogger(logger).fine("returning FAIL action");
+        }
         return ConnectionErrorAction.FAIL;
     }
 

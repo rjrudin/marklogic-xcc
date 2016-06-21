@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ByteChannel;
-import java.nio.channels.SocketChannel;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
@@ -105,7 +104,7 @@ public class SSLSocketPoolProvider implements ConnectionProvider, SingleHostAddr
         if ((channel == null) || (!(channel instanceof SslByteChannel))) {
             getLogger(logger).fine("channel is not eligible for pooling, dropping");
             try {
-                channel.close();
+                channel.close();          
             } catch (IOException e) {
                 getLogger(logger).fine("unable to close channel");
             }
@@ -113,7 +112,6 @@ public class SSLSocketPoolProvider implements ConnectionProvider, SingleHostAddr
         }
 
         SslByteChannel socketChannel = (SslByteChannel)channel;
-
         if (!socketChannel.isOpen()) {
             getLogger(logger).fine("channel has been closed, dropping");
             return;
@@ -168,13 +166,7 @@ public class SSLSocketPoolProvider implements ConnectionProvider, SingleHostAddr
         ServerConnection conn;
 
         while ((conn = sslPool.get(address)) != null) {
-            SocketChannel channel = (SocketChannel)conn.channel();
-
-            try {
-                channel.close();
-            } catch (IOException e) {
-                // do nothing
-            }
+            conn.close();
         }
 
         socketProvider.shutdown(logger);

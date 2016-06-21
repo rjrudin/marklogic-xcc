@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,12 @@ import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
+import org.ietf.jgss.GSSContext;
+import org.ietf.jgss.GSSCredential;
+import org.ietf.jgss.GSSManager;
+import org.ietf.jgss.GSSName;
+import org.ietf.jgss.Oid;
+
 import com.marklogic.io.Base64;
 import com.marklogic.io.IOHelper;
 import com.marklogic.xcc.ContentSource;
@@ -47,7 +53,7 @@ import com.marklogic.xcc.spi.ConnectionProvider;
 public class ContentSourceImpl implements ContentSource {
 	
     public static enum AuthType {
-        NONE, BASIC, DIGEST
+        NONE, BASIC, DIGEST, NEGOTIATE
     };
     
     private static final String DEFAULT_LOGGER_NAME = "com.marklogic.xcc";
@@ -127,10 +133,6 @@ public class ContentSourceImpl implements ContentSource {
 	}
 
     public Session newSession() {
-        if ((user == null) || (password == null)) {
-            throw new IllegalStateException("No default user/password configured");
-        }
-
         return (newSession(user, password));
     }
 
@@ -139,10 +141,6 @@ public class ContentSourceImpl implements ContentSource {
     }
 
     public Session newSession(String user, String password, String contentBaseArg) {
-        if ((user == null) || (password == null)) {
-            throw new IllegalStateException("Invalid authentication credentials");
-        }
-
         String contentBase = (contentBaseArg == null) ? this.contentBase : contentBaseArg;
 
         return (new SessionImpl(this, connectionProvider, new Credentials(user, password), contentBase));
@@ -201,6 +199,8 @@ public class ContentSourceImpl implements ContentSource {
             return credentials.toHttpBasicAuth();
         case DIGEST:
             return credentials.toHttpDigestAuth(method, uri, challenge);
+        case NEGOTIATE:
+            return credentials.toHttpNegotiateAuth(connectionProvider.getHostName(), challenge);
         default:
             return isAuthenticationPreemptive() ? credentials.toHttpBasicAuth() : null;
         }
@@ -375,6 +375,9 @@ public class ContentSourceImpl implements ContentSource {
         }
 
         public String toHttpBasicAuth() {
+            if ((user == null) || (password == null)) {
+                throw new IllegalStateException("Invalid authentication credentials");
+            }
             try {
                 return ("basic " + Base64.encodeBytes((user + ":" + password).getBytes("UTF-8"),
                         Base64.DONT_BREAK_LINES));
@@ -387,6 +390,9 @@ public class ContentSourceImpl implements ContentSource {
 
         public String toHttpDigestAuth(String method, String uri, String challengeHeader) {
 
+            if ((user == null) || (password == null)) {
+                throw new IllegalStateException("Invalid authentication credentials");
+            }
             if ((challengeHeader == null) || !challengeHeader.startsWith("Digest "))
                 return null;
 
@@ -440,6 +446,33 @@ public class ContentSourceImpl implements ContentSource {
             buf.append("\"");
 
             return buf.toString();
+        }
+
+        public String toHttpNegotiateAuth(String hostName, String challenge) {
+
+            try {
+                GSSManager manager = GSSManager.getInstance();
+                Oid krb5Mechanism = new Oid("1.2.840.113554.1.2.2");
+                Oid krb5PrincipalNameType = new Oid("1.2.840.113554.1.2.2.1");
+                GSSName serverName = manager.createName("HTTP/" + hostName,
+                                                        krb5PrincipalNameType);
+                GSSCredential userCreds = manager.createCredential(GSSCredential.INITIATE_ONLY);
+                GSSContext context = manager.createContext(serverName,
+                                                           krb5Mechanism,
+                                                           userCreds,
+                                                           GSSContext.DEFAULT_LIFETIME);
+                byte []inToken = new byte[0];
+                String parts[] = challenge.split(" ");
+                if (parts.length > 1) {
+                  inToken = Base64.decode(parts[1]);
+                }
+                byte[] outToken = context.initSecContext(inToken, 0, inToken.length);
+
+                String str = "Negotiate " + Base64.encodeBytes(outToken,Base64.DONT_BREAK_LINES);
+                return str;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override

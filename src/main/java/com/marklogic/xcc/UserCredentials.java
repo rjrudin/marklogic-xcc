@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,4 +39,13 @@ public interface UserCredentials {
      * @return An HTTP digest authentication header value.
      */
     String toHttpDigestAuth(String method, String uri, String challengeHeader);
+
+
+    /**
+     * Returns an HTTP negotiate authentication string.
+     *
+     * @return An HTTP negotiate authentication header value.
+     */
+    String toHttpNegotiateAuth(String hostName, String challengeHeader);
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2015 MarkLogic Corporation
+ * Copyright 2003-2016 MarkLogic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -92,10 +92,15 @@ public class SslByteChannel implements ByteChannel {
      */
     public void close() throws java.io.IOException {
         if (!closed) {
+            logger.fine("closing SslByteChannel");
             try {
                 try {
                     engine.closeOutbound();
-                    handleHandshake(wrapAppData());
+                    SSLEngineResult ser = wrapAppData();
+                    if (ser.getStatus() != Status.CLOSED) {
+                        logger.fine("SSLEngine not closed, calling handshake");
+                        handleHandshake(ser);
+                    }
                     if (selector != null)
                         selector.close();
                 } catch (IOException e) {
@@ -195,7 +200,113 @@ public class SslByteChannel implements ByteChannel {
             }
         }
     }
+    
+    public int readInsideHandshake(ByteBuffer clientBuffer) throws IOException {
+        // first try to copy out anything left over from last time
+        int bytesCopied = copyOutClientData(clientBuffer);
+        if (bytesCopied > 0) {
+            logger.fine("read bytesCopied=" + bytesCopied);
+            return bytesCopied;
+        
+        }
+        
+        int handShake = fillBufferFromEngineInsideHandshake();
+        if (handShake==-2) {
+            return handShake;//Done handshake from within another handshake call
+        } else {
+            bytesCopied = copyOutClientData(clientBuffer);
+            if (bytesCopied > 0) {
+                logger.fine("read bytesCopied=" + bytesCopied);
+                return bytesCopied;
+            }
+        }
+        return -1;
+    }
+    
+    private int fillBufferFromEngineInsideHandshake() throws IOException {
+        boolean doneHandshake=false;
+        while (true) {
+            SSLEngineResult ser = unwrapNetData();
+            if (ser.bytesProduced() > 0)
+                return 0;
 
+            switch (ser.getStatus()) {
+            case OK:
+                break;
+
+            case CLOSED:
+                close();
+                return 0;
+
+            case BUFFER_OVERFLOW: {
+                int appSize = engine.getSession().getApplicationBufferSize();
+                ByteBuffer b = ByteBuffer.allocate(appSize + inAppData.position());
+                inAppData.flip();
+                b.put(inAppData);
+                inAppData = b;
+                continue; // retry operation
+            }
+
+            case BUFFER_UNDERFLOW: {
+                if (doneHandshake) {
+                    // Related to support CASE #16254
+                    // Summary:
+                    // The handshake is completed in this function during a read
+                    // that was triggered from within another handshake call
+                    // due to UNDERFLOW mode (yes, nested handshake calls).
+                    //
+                    // This happens with a busy server that doesn't immediately
+                    // respond to an SSL handshake. The client gets in UNDERFLOW
+                    // mode during the sslAccept procedure. It then needs to
+                    // wait for the server to respond before it can really
+                    // finish the handshake.
+                    // But while reading, another handshake is initiated in this
+                    // function. If the handshake is successful the story should
+                    // end. However, the client keeps looping back here thinking
+                    // that it still has something to read. Meanwhile, the
+                    // server is done with the sslAccept (after a successful
+                    // handshake). The sever starts a background thread and
+                    // waits for the client that never sends anything since it's
+                    // stuck reading over and over. Eventually, the caller of
+                    // this code kills the read due to tiemout and attempts to
+                    // cleanly close the connection with the server. The
+                    // connection closing doesn't fully complete until the
+                    // waiting Server thread times out typically ater 30
+                    // seconds(default "request timeout" on server).
+                    return  -2;
+                }
+            
+                int netSize = engine.getSession().getPacketBufferSize();
+                if (netSize > inNetData.capacity()) {
+                    ByteBuffer b = ByteBuffer.allocate(netSize);
+                    inNetData.flip();
+                    b.put(inNetData);
+                    inNetData = b;
+                }
+
+                int rc = timedRead(inNetData, timeoutMillis);
+                if (rc == 0 && timeoutMillis > 0) {
+                    throw new IOException("Timeout waiting for read (" + timeoutMillis + " milliseconds)");
+                }
+                if (rc == -1) {
+                    break;
+                }
+                continue; // retry operation
+            }
+            }
+
+            switch (ser.getHandshakeStatus()) {
+            case NOT_HANDSHAKING:
+                return 0;
+
+            default:
+                handleHandshake(ser);
+                doneHandshake=true;
+                break;
+            }
+        }
+    }
+    
     private int timedRead(ByteBuffer buf, int timeoutMillis) throws IOException {
         if (timeoutMillis <= 0)
             return wrappedChannel.read(buf);
@@ -293,6 +404,13 @@ public class SslByteChannel implements ByteChannel {
         SSLEngineResult ser = initialSer;
 
         while (ser.getStatus() != Status.CLOSED) {
+            if (ser.getStatus() == Status.BUFFER_UNDERFLOW) {
+                int n = readInsideHandshake(inNetData);
+                if (n==-2) {//done handshake from within another handshake call
+                    return;
+                }
+                if (n<0) throw new EOFException("SSL wrapped byte channel");
+            }
             switch (ser.getHandshakeStatus()) {
             case NEED_TASK:
                 Runnable task;
@@ -318,7 +436,6 @@ public class SslByteChannel implements ByteChannel {
                 }
                 ser = unwrapNetData();
                 break;
-
             case FINISHED:
             case NOT_HANDSHAKING:
                 return;
