@@ -47,6 +47,7 @@ if (project.hasProperty("myBintrayUser")) {
     pkg {
       repo = 'maven'
       name = project.name
+      userOrg = 'marklogic'
       licenses = ['Apache-2.0']
       vcsUrl = 'https://github.com/rjrudin/' + project.name + '.git'
       version {
